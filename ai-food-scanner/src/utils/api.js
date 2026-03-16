@@ -1,5 +1,5 @@
 /**
- * analyzeIngredients — sends ingredient data to Claude AI via the Anthropic API
+ * analyzeIngredients — sends ingredient data to Groq AI (FREE)
  * and returns a structured health analysis report.
  *
  * @param {string|File} input  - Either a plain text ingredient list or a File object (image)
@@ -7,72 +7,53 @@
  * @returns {Promise<ScanResult>}
  */
 
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY
 
 export async function analyzeIngredients(input, mode = 'text') {
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error('Anthropic API key not found. Please add VITE_ANTHROPIC_API_KEY to your .env file.')
+  if (!GROQ_API_KEY) {
+    throw new Error('Groq API key not found. Please add VITE_GROQ_API_KEY to your .env file.')
   }
 
-  let messages
+  let userMessage
 
   if (mode === 'text') {
-    messages = [
-      {
-        role: 'user',
-        content: buildTextPrompt(input),
-      },
-    ]
+    userMessage = buildTextPrompt(input)
   } else {
-    // Convert image to base64
     const base64 = await fileToBase64(input)
-    const mediaType = input.type || 'image/jpeg'
-    messages = [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: base64 },
-          },
-          {
-            type: 'text',
-            text: buildImagePrompt(),
-          },
-        ],
-      },
-    ]
+    userMessage = buildImagePrompt(base64, input.type)
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-5',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages,
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: userMessage },
+      ],
     }),
   })
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `API error: ${response.status}`)
+    throw new Error(err?.error?.message || `Groq API error: ${response.status}`)
   }
 
   const data = await response.json()
-  const rawText = data.content?.[0]?.text || ''
+  const rawText = data.choices?.[0]?.message?.content || ''
 
   return parseResponse(rawText)
 }
 
 // ─── Prompts ────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a food safety and nutrition expert AI. When given a list of food ingredients (or an image of a food label), you analyze each ingredient for health impacts and return a structured JSON report.
+const SYSTEM_PROMPT = `You are a food safety and nutrition expert AI. When given a list of food ingredients, you analyze each ingredient for health impacts and return a structured JSON report.
 
 Your analysis must be:
 - Evidence-based and accurate
@@ -108,11 +89,19 @@ Status definitions:
 - critical: Strong evidence of harm; should be avoided`
 
 function buildTextPrompt(text) {
-  return `Please analyze the following food ingredients for health impacts:\n\n${text}\n\nReturn ONLY valid JSON as specified.`
+  return `Please analyze the following food ingredients for health impacts:\n\n${text}\n\nReturn ONLY valid JSON as specified. No extra text.`
 }
 
-function buildImagePrompt() {
-  return `This image shows a food product label. Please read the ingredients list and analyze each ingredient for health impacts. Return ONLY valid JSON as specified.`
+function buildImagePrompt(base64, mediaType) {
+  return `I have a food product label image. Since vision is not supported, please return this JSON exactly:
+{
+  "productName": "Image Upload",
+  "overallScore": 0,
+  "summary": "Unable to read image directly. Please use the Type Ingredients mode and paste the ingredients list manually for accurate analysis.",
+  "recommendation": "Switch to text mode and type the ingredients for best results.",
+  "ingredients": []
+}
+Return ONLY valid JSON.`
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -120,14 +109,13 @@ function buildImagePrompt() {
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(reader.result.split(',')[1])
+    reader.onload  = () => resolve(reader.result.split(',')[1])
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
 }
 
 function parseResponse(text) {
-  // Strip possible markdown fences
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   try {
     return JSON.parse(clean)
