@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #fdfdf8;
+  --color-surface: #faf9ee;
+  --color-border: #c8dbc4;
+  --color-text: #1a2e18;
+  --color-muted: #4d6b4a;
+  --color-accent: #3a6735;
+  --color-accent-light: #6fa068;
+  --color-danger: #d4623a;
+  --color-warning: #f0a500;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-light);
+}
+
+/* Scan animation */
+@keyframes scanLine {
+  0% { transform: translateY(0%); opacity: 1; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%       { transform: scale(1.05); opacity: 1; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e4ede2 25%, #f3f7f2 50%, #e4ede2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.glass {
+  background: rgba(253, 253, 248, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 219, 196, 0.6);
+}
+
+.health-badge-safe     { background: #e4ede2; color: #2f5229; border: 1px solid #9fc09a; }
+.health-badge-caution  { background: #fef3cd; color: #7a5200; border: 1px solid #f0c040; }
+.health-badge-warning  { background: #fdebd8; color: #7a2e0a; border: 1px solid #e07b54; }
+.health-badge-critical { background: #fde8e4; color: #6b1a10; border: 1px solid #d4623a; }
+
+.dot-pattern {
+  background-image: radial-gradient(circle, #c8dbc4 1px, transparent 1px);
+  background-size: 24px 24px;
+}
